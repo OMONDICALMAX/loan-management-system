@@ -70,14 +70,6 @@ def test_negative_penalty_rate_is_rejected():
 
 # ---------- Repayment schedule ----------
 
-if (
-    monthly_interest_rate < 0
-    or processing_fee_rate < 0
-    or transaction_cost < 0
-    or insurance_per_installment < 0
-):
-    raise ValueError("rates and fees must not be negative")
-
 def test_principal_is_fully_repaid():
     schedule = calculate_repayment_schedule(
         principal=Decimal("30000.00"),
@@ -189,3 +181,82 @@ def test_rounding_reconciles_transaction_cost_exactly():
     )
 
     assert total(schedule, "transaction_cost") == Decimal("90.00")
+
+def test_no_penalty_before_72_hour_grace_period():
+    penalty = calculate_late_penalty(
+        remaining_principal=Decimal("20000.00"),
+        due_at=DUE_AT,
+        now=DUE_AT + timedelta(hours=71, minutes=59),
+    )
+
+    assert penalty == ZERO
+
+
+def test_penalty_applies_at_exactly_72_hours():
+    penalty = calculate_late_penalty(
+        remaining_principal=Decimal("20000.00"),
+        due_at=DUE_AT,
+        now=DUE_AT + timedelta(hours=72),
+    )
+
+    assert penalty == Decimal("6000.00")
+
+
+def test_penalty_remains_same_after_72_hours():
+    penalty = calculate_late_penalty(
+        remaining_principal=Decimal("20000.00"),
+        due_at=DUE_AT,
+        now=DUE_AT + timedelta(hours=96),
+    )
+
+    assert penalty == Decimal("6000.00")
+
+
+def test_already_applied_penalty_is_not_charged_again():
+    penalty = calculate_late_penalty(
+        remaining_principal=Decimal("20000.00"),
+        due_at=DUE_AT,
+        now=DUE_AT + timedelta(hours=96),
+        penalty_already_applied=True,
+    )
+
+    assert penalty == ZERO
+
+def test_naive_due_date_is_rejected():
+    due_at = datetime(2026, 10, 1, 9, 0)
+
+    with pytest.raises(ValueError):
+        calculate_late_penalty(
+            remaining_principal=Decimal("20000.00"),
+            due_at=due_at,
+            now=DUE_AT + timedelta(hours=72),
+        )
+
+
+def test_naive_current_time_is_rejected():
+    with pytest.raises(ValueError):
+        calculate_late_penalty(
+            remaining_principal=Decimal("20000.00"),
+            due_at=DUE_AT,
+            now=datetime(2026, 10, 4, 9, 0),
+        )
+
+
+def test_negative_grace_period_is_rejected():
+    with pytest.raises(ValueError):
+        calculate_late_penalty(
+            remaining_principal=Decimal("20000.00"),
+            due_at=DUE_AT,
+            now=DUE_AT + timedelta(hours=72),
+            grace_period_hours=-1,
+        )
+
+
+def test_boolean_grace_period_is_rejected():
+    with pytest.raises(ValueError):
+        calculate_late_penalty(
+            remaining_principal=Decimal("20000.00"),
+            due_at=DUE_AT,
+            now=DUE_AT + timedelta(hours=72),
+            grace_period_hours=True,
+        )
