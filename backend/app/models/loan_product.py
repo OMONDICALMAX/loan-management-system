@@ -8,6 +8,27 @@ from app.extensions import db
 class LoanProduct(db.Model):
     __tablename__ = "loan_products"
 
+    
+    __table_args__ = (
+        db.CheckConstraint(
+            "min_installments IS NULL OR min_installments > 0",
+            name="ck_loan_products_min_installments_positive",
+        ),
+        db.CheckConstraint(
+            "max_installments IS NULL OR max_installments > 0",
+            name="ck_loan_products_max_installments_positive",
+        ),
+        db.CheckConstraint(
+            """
+            min_installments IS NULL
+            OR max_installments IS NULL
+            OR max_installments >= min_installments
+            """,
+            name="ck_loan_products_valid_installment_range",
+        ),
+    )
+
+
     id = db.Column(db.Integer, primary_key=True)
 
     name = db.Column(db.String(100), nullable=False, unique=True)
@@ -75,6 +96,19 @@ class LoanProduct(db.Model):
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
+
+    
+    # Permitted repayment period
+    min_installments = db.Column(
+        db.Integer,
+        nullable=True,
+    )
+
+    max_installments = db.Column(
+        db.Integer,
+        nullable=True,
+    )
+
 
     def __repr__(self):
         return f"<LoanProduct {self.name}>"
