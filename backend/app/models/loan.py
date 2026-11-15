@@ -45,6 +45,10 @@ class Loan(db.Model):
             "'disbursed', 'active', 'completed', 'defaulted', 'cancelled')",
             name="ck_loans_valid_status",
         ),
+                db.CheckConstraint(
+            "penalty_amount >= 0",
+            name="ck_loans_penalty_amount_nonnegative",
+        ),
     )
 
     id = db.Column(db.Integer, primary_key=True)
@@ -64,6 +68,13 @@ class Loan(db.Model):
 
     customer = db.relationship("Customer", backref="loans")
     loan_product = db.relationship("LoanProduct", backref="loans")
+
+    installments = db.relationship(
+    "LoanInstallment",
+    back_populates="loan",
+    cascade="all, delete-orphan",
+    order_by="LoanInstallment.installment_number",
+)
 
     # Loan details
     principal = db.Column(db.Numeric(12, 2), nullable=False)
@@ -99,6 +110,18 @@ class Loan(db.Model):
     )
 
     grace_period_hours = db.Column(db.Integer, nullable=False)
+
+        # One-time penalty for the entire loan
+    penalty_amount = db.Column(
+        db.Numeric(12, 2),
+        nullable=False,
+        default=Decimal("0.00"),
+    )
+
+    penalty_applied_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+    )
 
     # Approval workflow
     internal_approved = db.Column(
