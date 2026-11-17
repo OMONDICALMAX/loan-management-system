@@ -1,6 +1,6 @@
 
 from decimal import Decimal, ROUND_HALF_UP
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 
 CENT = Decimal("0.01")
@@ -186,3 +186,54 @@ def calculate_late_penalty(
         return Decimal("0.00")
 
     return money(remaining_principal * penalty_rate)
+
+def calculate_daily_interest(
+    principal,
+    start_date,
+    end_date,
+    monthly_interest_rate=DEFAULT_MONTHLY_INTEREST_RATE,
+):
+    """
+    Calculate interest for actual calendar days used.
+
+    The start date is excluded.
+    The end date is included.
+
+    Formula:
+        principal * monthly_rate * (days_used / 30)
+    """
+
+    principal = money(principal)
+    monthly_interest_rate = to_decimal(monthly_interest_rate)
+
+    if principal < 0:
+        raise ValueError("Principal cannot be negative.")
+
+    if monthly_interest_rate < 0:
+        raise ValueError("Interest rate cannot be negative.")
+
+    if (
+        isinstance(start_date, datetime)
+        or not isinstance(start_date, date)
+    ):
+        raise ValueError("Start date must be a date.")
+
+    if (
+        isinstance(end_date, datetime)
+        or not isinstance(end_date, date)
+    ):
+        raise ValueError("End date must be a date.")
+
+    if end_date < start_date:
+        raise ValueError("End date cannot be before start date.")
+
+    days_used = (end_date - start_date).days
+
+    interest = (
+        principal
+        * monthly_interest_rate
+        * Decimal(days_used)
+        / Decimal("30")
+    )
+
+    return money(interest)

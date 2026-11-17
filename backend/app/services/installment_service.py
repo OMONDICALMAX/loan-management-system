@@ -88,7 +88,6 @@ def create_loan_installments(loan, repayment_dates):
             total_due=item["total_due"],
             closing_principal=item["closing_principal"],
             amount_paid=0,
-            penalty_amount=0,
             status="pending",
         )
 
